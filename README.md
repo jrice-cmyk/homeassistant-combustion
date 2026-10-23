@@ -68,7 +68,7 @@ New features:
 
 There is currently no configuration required for this integration. Once the integration discovers your Combustion device(s), it will prompt you to add them on the Integrations page.
 
-Optional settings live under **Settings → Devices & Services → Combustion → Configure**: the availability timeout (how long a device may stay silent before its entities become unavailable), the per-device update throttle, and **Active connection** — predictions + device control (experimental; see below).
+Optional settings live under **Settings → Devices & Services → Combustion → Configure**: the availability timeout (how long a device may stay silent before its entities become unavailable), the per-device update throttle, **Active connection** — predictions + device control (experimental; see below), and **Engine connection** — Engine fan, controller and battery data (see below).
 
 ### Active connection: predictions + control (experimental)
 
@@ -88,6 +88,12 @@ Turning it on also enables writable **control entities** for each probe, created
 - **No disable path for alarms** in this release: setting a High or Low alarm enables it, and there's currently no way to turn it back off from Home Assistant.
 - Holding an active connection uses more probe battery and competes with the Combustion phone app for the probe's single connection slot.
 - **Target temperature and alarm setpoints survive a Home Assistant restart or reload**: the entities restore and display their last-set value, and re-sending one alarm no longer silently clears the other. Changing the prediction mode still requires a target temperature to be set first (in this session or a prior one) — there's no default to fall back to.
+
+### Engine connection (experimental)
+
+Engines broadcast their set point and status flags, which appear without any connection. Fan, controller, battery, knob and charging details are only sent to connected devices in the Engine Status message, so **Engine connection** keeps one Bluetooth connection open to each Engine and adds these sensors to the Engine device: fan state, fan duty cycle, fan speed, controller state, control temperature (with the control device as attributes), battery level, battery state, battery voltage, charging fault, reached set point and maintenance mode. Fan commanded speed, smoothed temperature and knob angle are created disabled.
+
+It connects only to Engines, never to probes, so it does not take a probe connection slot from the Booster, Engine or phone app. An Engine accepts up to four inbound connections. It needs a connectable path (a local adapter or an active ESPHome proxy); the sensors are unavailable while the Engine is disconnected or silent for 60 seconds.
 
 ## Dashboard card
 
@@ -126,7 +132,7 @@ secondary: 10007dc0     # optional — show a food probe below the grill temp;
 
 ## Supported devices
 
-This integration supports reading temperature and battery data from Combustion's [Predictive Thermometer](https://combustion.inc/products/predictive-thermometer) and temperature, alarm and status data from the Giant Grill Gauge, and set point and status data from the Engine. Engine fan, controller and battery details are only sent over a direct connection and aren't read yet.
+This integration supports reading temperature and battery data from Combustion's [Predictive Thermometer](https://combustion.inc/products/predictive-thermometer) and temperature, alarm and status data from the Giant Grill Gauge, and set point and status data from the Engine. Engine fan, controller and battery details are read over the optional [Engine connection](#engine-connection-experimental).
 
 This integration can read data from a probe directly, or via a Meatnet repeater such as the [Range-Extending Booster](https://combustion.inc/products/long-range-predictive-thermometer) or [Range-Extending Display](https://combustion.inc/products/range-extending-display). Advertisements received through Home Assistant Bluetooth proxies (active or passive) are supported.
 
