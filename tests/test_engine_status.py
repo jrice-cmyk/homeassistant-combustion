@@ -108,6 +108,37 @@ def test_decodes_every_status_field():
     assert status.charging_fault == 'input_fault'
 
 
+# Captured from a real, idle Engine (E000001790) over HA's Engine connection:
+# app mode on, Grill Gauge set as control device but not connected, fan off.
+REAL_IDLE_STATUS = bytes.fromhex(
+    '45303030303031373930e63e95dd8813d0010000d001000000007a5703c800'
+    '0347303030303031363145000001030000008813000000000000000f000000'
+    '00000000ff09350200'
+)
+
+
+def test_decodes_real_idle_engine_status():
+    """The captured status decodes to the Engine's real, idle state."""
+    status = EngineStatus.from_payload(REAL_IDLE_STATUS)
+    assert status.serial_number == 'E000001790'
+    assert status.sample_period_ms == 5000
+    assert status.battery_level == 'ok'
+    assert status.battery_state == 'not_charging'
+    assert status.battery_voltage == pytest.approx(12.2)
+    assert status.set_point == pytest.approx(65.5)
+    assert status.control_device_type == 'gauge'
+    assert status.control_device_serial == 'G00000161E'
+    assert status.app_mode is True
+    assert status.control_device_connected is False
+    # Raw 200 (0.0C) is sent while the control device is not connected.
+    assert status.control_temperature is None
+    assert status.fan_state == 'off'
+    assert status.controller_state == 'idle'
+    assert status.smoothed_temperature is None
+    assert status.knob_angle == pytest.approx(56.5)
+    assert status.charging_fault == 'none'
+
+
 def test_node_control_device_serial_is_text():
     """A gauge or node control device carries an alphanumeric serial."""
     payload = _status_payload(control_device_type=3, control_device_serial=b'G00000161E\x00\x00')

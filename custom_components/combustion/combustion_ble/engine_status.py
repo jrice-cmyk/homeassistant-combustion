@@ -147,7 +147,7 @@ class EngineStatus(NamedTuple):
     cycles_completed: int
     reached_set_point: bool
     maintenance_mode: bool
-    smoothed_temperature: float
+    smoothed_temperature: float | None
     time_to_peak_s: int
     drift_rate: float
     hop_count: int
@@ -173,6 +173,8 @@ class EngineStatus(NamedTuple):
 
         device_type = payload[31]
         flags = payload[44]
+        control_device_connected = bool(flags & 0x2)
+        controller_state = CONTROLLER_STATES.get(payload[57])
         controller_flags = payload[60]
         return EngineStatus(
             serial_number=serial_number,
@@ -183,11 +185,13 @@ class EngineStatus(NamedTuple):
             battery_state=BATTERY_STATES.get(payload[25]),
             battery_voltage=payload[26] / 10.0,
             set_point=_temperature_point(payload[27:29]),
-            control_temperature=_temperature_point(payload[29:31]),
+            # A real Engine reports raw 200 (0.0C) while it cannot see its
+            # control device, so only trust the reading while it is connected.
+            control_temperature=_temperature_point(payload[29:31]) if control_device_connected else None,
             control_device_type=PRODUCT_TYPE_NAMES.get(device_type),
             control_device_serial=_control_device_serial(device_type, payload[32:44]),
             app_mode=bool(flags & 0x1),
-            control_device_connected=bool(flags & 0x2),
+            control_device_connected=control_device_connected,
             lid_open=bool(flags & 0x4),
             fixed_speed=bool(flags & 0x8),
             fan_state=FAN_STATES.get(payload[45]),
@@ -196,12 +200,13 @@ class EngineStatus(NamedTuple):
             fan_measured_speed=payload[48],
             fan_off_time_ms=u32(49),
             fan_on_time_ms=u32(53),
-            controller_state=CONTROLLER_STATES.get(payload[57]),
+            controller_state=controller_state,
             response_coefficient=payload[58] / 500.0,
             cycles_completed=payload[59],
             reached_set_point=bool(controller_flags & 0x1),
             maintenance_mode=bool(controller_flags & 0x2),
-            smoothed_temperature=u16(61) / 10.0,
+            # The controller only tracks a temperature once it leaves idle.
+            smoothed_temperature=u16(61) / 10.0 if controller_state != 'idle' else None,
             time_to_peak_s=payload[63],
             drift_rate=int.from_bytes(payload[64:65], byteorder='little', signed=True) / 1000.0,
             hop_count=(payload[65] & 0x3) + 1,
